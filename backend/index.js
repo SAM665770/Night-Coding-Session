@@ -5,17 +5,24 @@ import { connectDB } from "./config/database-config.js";
 
 const app = express();
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  process.env.CLIENT_URL,
-].filter(Boolean).map((o) => o.replace(/\/$/, ""));
+const clientUrls = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(",")
+      .map((url) => url.trim())
+      .filter(Boolean)
+  : [];
+
+const allowedOrigins = ["http://localhost:5173", ...clientUrls]
+  .filter(Boolean)
+  .map((o) => o.replace(/\/$/, ""));
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) callback(null, true);
-      else callback(new Error("Not allowed by CORS"));
+      if (!origin || allowedOrigins.includes(origin))
+        return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
     },
+    credentials: true,
   }),
 );
 
