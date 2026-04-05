@@ -1,23 +1,29 @@
-// 1) we are importing exprss module which we installed using npm i
+import "dotenv/config";
 import express from "express";
+import cors from "cors";
+import { connectDB } from "./config/database-config.js";
 
-// 2) call/invoke the function
 const app = express();
 
-app.get("/", (req, res) => {
-  // req,res -> object
-  //   res.send("welcome");
-  res
-    .status(500)
-    .json({ success: true, message: "okay", data: { username: "abc" } });
-});
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+  }),
+);
 
-app.get("/about", (req, res) => {
-  res.status(200).send("hi");
-});
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-// 3) assign a port number to our server
-// app.listen(PORT_NUMBER, callback)
-app.listen(3000, () => {
-  console.log("Server Started...");
+import userRoutes from "./routes/auth-route.js";
+import sessionRoutes from "./routes/session-route.js";
+import aiRoutes from "./routes/ai-route.js";
+app.use("/api/auth", userRoutes);
+app.use("/api/sessions", sessionRoutes);
+app.use("/api/ai", aiRoutes);
+
+connectDB().then(() => {
+  console.log("JWT_SECRET loaded:", !!process.env.JWT_SECRET);
+  app.listen(3000, () => {
+    console.log(`Listening on http://localhost:3000`);
+  });
 });

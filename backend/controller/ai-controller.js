@@ -1,7 +1,5 @@
-import dotenv from "dotenv";
-dotenv.config();
-
 import { GoogleGenAI } from "@google/genai";
+import { jsonrepair } from "jsonrepair";
 import Question from "../models/question-model.js";
 import Session from "../models/session-model.js";
 import {
@@ -42,34 +40,68 @@ export const generateInterviewQuestions = async (req, res) => {
     const { role, experience, topicsToFocus } = session;
     console.log("session: ", session);
 
-    //? 2. generate via Gemini
+    // ? 2. generate via Gemini
     const prompt = questionAnswerPrompt(role, experience, topicsToFocus, 10);
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
+      config: { responseMimeType: "application/json" },
     });
-    console.log("response: ", response);
 
-    const parts = response.candidates?.[0]?.content?.parts ?? [];
-    const rawText = parts
-      .filter((p) => !p.thought) // gemini-2.5-flash includes thinking parts; skip them
-      .map((p) => p.text ?? "")
-      .join("");
+    const rawText =
+      response.candidates?.[0]?.content?.parts
+        ?.filter((p) => !p.thought)
+        .map((p) => p.text ?? "")
+        .join("") ?? "";
 
-    const cleanedText = rawText
+    // Fix unescaped newlines/tabs inside JSON string values
+    const sanitized = rawText.replace(
+      /"((?:[^"\\]|\\.)*)"/g,
+      (_, inner) =>
+        `"${inner.replace(/\n/g, "\\n").replace(/\r/g, "").replace(/\t/g, "\\t")}"`,
+    );
+
+    // Clean it: Remove backticks, json markers, and any extra formatting
+    const cleanedText = sanitized
       .replace(/^```json\s*/, "")
       .replace(/^```\s*/, "")
       .replace(/```$/, "")
       .replace(/^json\s*/, "")
       .trim();
 
+    // Parse the cleaned JSON
     let questions;
     try {
-      questions = JSON.parse(cleanedText);
-    } catch {
+      // First try to extract JSON array
       const jsonMatch = cleanedText.match(/\[[\s\S]*\]/);
-      if (jsonMatch) questions = JSON.parse(jsonMatch[0]);
-      else throw new Error("Failed to parse AI response as JSON");
+      if (jsonMatch) {
+        const repaired = jsonrepair(jsonMatch[0]);
+        questions = JSON.parse(repaired);
+      } else {
+        throw new Error("No JSON array found in response");
+      }
+    } catch (parseError) {
+      console.error(
+        "Failed to parse cleanedText even with jsonrepair:",
+        parseError.message,
+      );
+      console.error("cleanedText length:", cleanedText.length);
+      console.error(
+        "cleanedText preview:",
+        cleanedText.substring(0, 500) + "...",
+      );
+      // Log around the error position
+      const errorPos = parseError.message.match(/position (\d+)/);
+      if (errorPos) {
+        const pos = parseInt(errorPos[1]);
+        const start = Math.max(0, pos - 200);
+        const end = Math.min(cleanedText.length, pos + 200);
+        console.error(
+          "Text around error position:",
+          cleanedText.substring(start, end),
+        );
+      }
+      throw new Error("Failed to parse AI response as JSON array");
     }
 
     if (!Array.isArray(questions)) throw new Error("Response is not an array");

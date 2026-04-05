@@ -14,7 +14,7 @@ const generateToken = (userId) => {
 // @access  Public
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, profileImageUrl } = req.body;
+    const { name, email, password } = req.body;
 
     if (!name || !email || !password) {
       return res
@@ -35,14 +35,12 @@ export const registerUser = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      profileImageUrl: profileImageUrl || null,
     });
 
     res.status(201).json({
       _id: user._id,
       name: user.name,
       email: user.email,
-      profileImageUrl: user.profileImageUrl,
       token: generateToken(user._id),
     });
   } catch (error) {
@@ -64,7 +62,6 @@ export const loginUser = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
-        profileImageUrl: user.profileImageUrl,
         token: generateToken(user._id),
       });
     } else {
