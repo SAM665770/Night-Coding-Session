@@ -42,8 +42,6 @@ Users can create multiple preparation sessions, each tailored to a specific job 
 
 ---
 
-## 📁 Project Structure
-
 
 ## 📁 Project Structure
 
@@ -143,7 +141,7 @@ http://localhost:5173
 
 ## 🌐 Live Demo
 
-👉 **[Visit AI Interview Prep](#)**
+👉 **[Visit AI Interview Prep](https://ai-interview-prep-zeta-wheat.vercel.app/)**
 
 ---
 
